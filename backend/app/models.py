@@ -36,7 +36,7 @@ class GUID(TypeDecorator):
         return UUID(str(value))
 
 
-class Session(Base):
+class ChatSession(Base):
     __tablename__ = "sessions"
     id: Mapped[UUID] = mapped_column(
         GUID(),
@@ -64,7 +64,7 @@ class Message(Base):
     content: Mapped[str] = mapped_column(Text())
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    session: Mapped[Session] = relationship("Session", back_populates="messages")
+    session: Mapped["ChatSession"] = relationship("ChatSession", back_populates="messages")
 
     __table_args__ = (
         CheckConstraint("role in ('user','assistant','system')", name="ck_message_role"),

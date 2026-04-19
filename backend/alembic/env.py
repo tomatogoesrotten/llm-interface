@@ -15,19 +15,39 @@ settings = get_settings()
 db_url = settings.database_url
 
 
+def run_migrations_offline():
+    context.configure(
+        url=db_url,
+        target_metadata=target_metadata,
+        literal_binds=True,
+        dialect_opts={"paramstyle": "named"},
+    )
+    with context.begin_transaction():
+        context.run_migrations()
+
+
 def run_migrations_online():
     connectable: AsyncEngine = create_async_engine(db_url, future=True)
 
     async def do_run():
         async with connectable.connect() as connection:
             await connection.run_sync(_do_migrations)
+        await connectable.dispose()
 
     def _do_migrations(sync_conn):
-        context.configure(connection=sync_conn, target_metadata=target_metadata)
+        context.configure(
+            connection=sync_conn,
+            target_metadata=target_metadata,
+            compare_type=True,
+            compare_server_default=True,
+        )
         with context.begin_transaction():
             context.run_migrations()
 
     asyncio.run(do_run())
 
 
-run_migrations_online()
+if context.is_offline_mode():
+    run_migrations_offline()
+else:
+    run_migrations_online()

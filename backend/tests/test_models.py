@@ -1,7 +1,7 @@
 import pytest
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from app.db import Base
-from app.models import Session as ChatSession, Message
+from app.models import ChatSession, Message
 
 
 @pytest.fixture
