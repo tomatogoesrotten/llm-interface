@@ -1,0 +1,39 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: chat
+    ports: ["5432:5432"]
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-sk-not-set}
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/chat
+      FRONTEND_ORIGIN: http://localhost:3000
+      COOKIE_SECURE: "false"
+      COOKIE_SAMESITE: lax
+    ports: ["8000:8000"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    ports: ["3000:3000"]
+    depends_on: [backend]
+
+volumes:
+  postgres-data:
