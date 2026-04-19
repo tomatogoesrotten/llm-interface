@@ -22,7 +22,7 @@ On every send, the frontend POSTs to `/chat/stream` with `credentials: 'include'
 ## Tech stack
 
 - **Backend:** FastAPI, SQLAlchemy 2.x (async) + Alembic, `AsyncOpenAI` SDK, Pydantic v2
-- **Frontend:** Next.js 15 (App Router), React 19, Tailwind CSS v4
+- **Frontend:** Next.js 16 (App Router), React 19, Tailwind CSS v4
 - **Database:** PostgreSQL 16
 - **Testing:** `pytest` + `httpx.AsyncClient` (backend), `vitest` + React Testing Library (frontend), Playwright (E2E)
 - **Deploy:** Docker, Docker Compose, Zeabur (3 services)
@@ -57,7 +57,7 @@ pip install -r requirements.txt
 pytest
 ```
 
-Tests use an in-memory SQLite DB and override the LLM wrapper via `app.dependency_overrides` with a fake that yields pre-canned tokens — no network, fully deterministic.
+Tests use an in-memory SQLite DB and stub the LLM wrapper via `monkeypatch.setattr(app.llm, "stream_chat", ...)` with a fake that yields pre-canned tokens — no network, fully deterministic.
 
 ### Frontend (vitest)
 
