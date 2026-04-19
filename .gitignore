@@ -34,6 +34,9 @@ playwright-report/
 test-results/
 .playwright/
 
+# Claude Code local state
+.claude/
+
 # OS / editor
 .DS_Store
 Thumbs.db
