@@ -1,0 +1,15 @@
+# Default: let git auto-detect text files and normalize to LF on commit.
+* text=auto eol=lf
+
+# Always LF — these break on Linux containers if checked out as CRLF.
+*.sh        text eol=lf
+Dockerfile  text eol=lf
+*.dockerfile text eol=lf
+
+# Binary — never touch.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.pdf  binary
