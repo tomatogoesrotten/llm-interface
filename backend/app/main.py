@@ -21,3 +21,7 @@ app.include_router(sessions_router.router)
 @app.get("/health")
 async def health():
     return {"ok": True}
+
+
+from app.routers import chat as chat_router
+app.include_router(chat_router.router)

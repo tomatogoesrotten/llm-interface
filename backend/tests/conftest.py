@@ -35,3 +35,19 @@ async def client(test_engine):
     async with AsyncClient(transport=transport, base_url="http://test") as c:
         yield c
     app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def fake_llm(monkeypatch):
+    tokens_to_yield: list[list[str]] = []
+    calls: list[list[dict]] = []
+
+    async def _fake(messages):
+        calls.append(messages)
+        seq = tokens_to_yield.pop(0) if tokens_to_yield else ["Hel", "lo"]
+        for t in seq:
+            yield t
+
+    from app import llm
+    monkeypatch.setattr(llm, "stream_chat", _fake)
+    return {"queue": tokens_to_yield, "calls": calls}
