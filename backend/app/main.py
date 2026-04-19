@@ -14,6 +14,10 @@ app.add_middleware(
 )
 
 
+from app.routers import sessions as sessions_router
+app.include_router(sessions_router.router)
+
+
 @app.get("/health")
 async def health():
     return {"ok": True}
