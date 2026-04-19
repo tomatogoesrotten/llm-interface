@@ -1,0 +1,78 @@
+name: CI
+on: [push, pull_request]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - run: pytest -v
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm ci
+      - run: npm test
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    env:
+      HAS_KEY: ${{ secrets.OPENAI_API_KEY != '' }}
+    steps:
+      - name: Skip if no API key
+        if: env.HAS_KEY != 'true'
+        run: |
+          echo "No OPENAI_API_KEY secret set — skipping E2E."
+          exit 0
+      - uses: actions/checkout@v4
+        if: env.HAS_KEY == 'true'
+      - name: Build and start stack
+        if: env.HAS_KEY == 'true'
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: docker compose up -d --build
+      - name: Wait for backend
+        if: env.HAS_KEY == 'true'
+        run: |
+          for i in {1..30}; do
+            if curl -fsS http://localhost:8000/health; then
+              echo "backend up"; break
+            fi
+            sleep 2
+          done
+      - uses: actions/setup-node@v4
+        if: env.HAS_KEY == 'true'
+        with:
+          node-version: "20"
+      - name: Install Playwright
+        if: env.HAS_KEY == 'true'
+        working-directory: e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Run E2E
+        if: env.HAS_KEY == 'true'
+        working-directory: e2e
+        run: npx playwright test
+      - if: always() && env.HAS_KEY == 'true'
+        run: docker compose logs
+      - uses: actions/upload-artifact@v4
+        if: always() && env.HAS_KEY == 'true'
+        with:
+          name: playwright-report
+          path: e2e/playwright-report

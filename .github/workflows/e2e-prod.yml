@@ -1,0 +1,29 @@
+name: E2E against Zeabur
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Deployed frontend URL (e.g. https://your-app.zeabur.app)"
+        required: true
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - working-directory: e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - working-directory: e2e
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ github.event.inputs.base_url }}
+        run: npx playwright test
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-prod
+          path: e2e/playwright-report
