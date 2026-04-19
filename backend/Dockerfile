@@ -12,7 +12,7 @@ COPY app ./app
 COPY alembic ./alembic
 COPY alembic.ini ./alembic.ini
 COPY entrypoint.sh ./entrypoint.sh
-RUN chmod +x entrypoint.sh
+RUN sed -i 's/\r$//' entrypoint.sh && chmod +x entrypoint.sh
 
 ENV PORT=8000
 EXPOSE 8000
