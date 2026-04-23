@@ -38,6 +38,7 @@ docker compose up --build
 ```
 
 Then visit [http://localhost:3000](http://localhost:3000).
+For public view [http://llm-interface.zeabur.aoo](llm-interface.zeabur.app)
 
 Services exposed by `docker-compose.yml`:
 
