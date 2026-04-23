@@ -24,7 +24,7 @@ On every send, the frontend POSTs to `/chat/stream` with `credentials: 'include'
 - **Backend:** FastAPI, SQLAlchemy 2.x (async) + Alembic, `AsyncOpenAI` SDK, Pydantic v2
 - **Frontend:** Next.js 16 (App Router), React 19, Tailwind CSS v4
 - **Database:** PostgreSQL 16
-- **Testing:** `pytest` + `httpx.AsyncClient` (backend), `vitest` + React Testing Library (frontend), Playwright (E2E)
+- **Testing:** `pytest` + `httpx.AsyncClient` (backend), `vitest` + React Testing Library (frontend)
 - **Deploy:** Docker, Docker Compose, Zeabur (3 services)
 
 ## Local development
@@ -83,8 +83,7 @@ npm install
 npx playwright install chromium
 npx playwright test
 ```
-
-The E2E suite drives a real browser against the local stack and exercises the golden path, session persistence across reload, and the CORS + credentials contract.
+Note: Tried, but did not succeed
 
 ## Deploying to Zeabur
 
@@ -92,15 +91,15 @@ The project ships as three Zeabur services:
 
 | Service | Source | Notes |
 |---|---|---|
-| `postgres` | Marketplace → PostgreSQL | Exposes `DATABASE_URL` for linking |
+| `postgres` | PostgreSQL docker image | |
 | `backend` | Repo, root `backend/` | Python / FastAPI; runs `alembic upgrade head` on start |
 | `frontend` | Repo, root `frontend/` | Next.js (standalone output) |
 
 **Backend env vars:**
 
-- `OPENAI_API_KEY` — your OpenAI key
-- `DATABASE_URL` — linked from the Postgres service (use the async driver: `postgresql+asyncpg://...`)
-- `FRONTEND_ORIGIN=https://<frontend-url>` — must be the exact deployed frontend origin (CORS requires an explicit origin when `allow_credentials=True`)
+- `OPENAI_API_KEY` — OpenAI key
+- `DATABASE_URL` — linked from the Postgres service
+- `FRONTEND_ORIGIN=https://<frontend-url>` — for CORS
 - `COOKIE_SECURE=true`
 - `COOKIE_SAMESITE=none`
 
@@ -112,8 +111,6 @@ Zeabur health-checks `/health` on the backend.
 
 ## Design decisions
 
-These are the choices worth discussing in an interview — each one was deliberate, with an alternative rejected.
-
 ### LLM wrapper pattern
 
 `backend/app/llm.py` is the **only** module in the codebase that imports `openai`. It exposes a single async generator:
@@ -122,11 +119,11 @@ These are the choices worth discussing in an interview — each one was delibera
 async def stream_chat(messages: list[dict]) -> AsyncIterator[str]: ...
 ```
 
-Everything else — the chat router, the tests — depends on this interface, not on the OpenAI SDK. That gives two wins. First, **testability:** tests replace `stream_chat` via `app.dependency_overrides` with a fake that yields pre-canned tokens, so the test suite runs in milliseconds and has zero network flakes. Second, **swappability:** switching to Gemini, Anthropic, or a local Ollama model touches exactly one file.
+Everything else — the chat router, the tests — depends on this interface, not on the OpenAI SDK. First, **testability:** tests replace `stream_chat` via `app.dependency_overrides` with a fake that yields pre-canned tokens, so the test suite runs in milliseconds and has zero network flakes. Second, **swappability:** switching to Gemini, Anthropic, or a local Ollama model touches exactly one file.
 
 ### HttpOnly cookie sessions
 
-The session ID lives in an `HttpOnly; Secure; SameSite=None` cookie set by `POST /sessions`. It is never visible to JavaScript, so an XSS bug cannot exfiltrate it — the opposite of storing a token in `localStorage`. The frontend opts in to sending it with `credentials: 'include'` on every fetch. Because the browser refuses to send credentials to a wildcard CORS origin, the backend is configured with an **explicit** `FRONTEND_ORIGIN` and `allow_credentials=True`. Dev uses `SameSite=Lax` + `Secure=false`; prod uses `SameSite=None` + `Secure=true`, driven by env.
+The session ID lives in an `HttpOnly; Secure; SameSite=None` cookie set by `POST /sessions`. It is never visible to JavaScript, so an XSS bug cannot exfiltrate it. The frontend opts in to sending it with `credentials: 'include'` on every fetch. Because the browser refuses to send credentials to a wildcard CORS origin, the backend is configured with an **explicit** `FRONTEND_ORIGIN` and `allow_credentials=True`. Uses `SameSite=Lax` + `Secure=false`; prod uses `SameSite=None` + `Secure=true`, driven by env.
 
 ### Stateless backend, DB as source of truth
 
@@ -135,3 +132,6 @@ There is no in-memory conversation cache. Every `/chat/stream` request rebuilds 
 ### Raw `text/plain` streaming, not SSE
 
 The backend returns `StreamingResponse(media_type="text/plain; charset=utf-8")` and the frontend consumes it with `response.body.getReader()`. There is exactly one streaming endpoint producing exactly one content type — SSE's `data: ...\n\n` framing and event-type multiplexing would be ceremony for no benefit. To stop reverse proxies from buffering the stream (which would defeat the whole point), the response sets `X-Accel-Buffering: no` and `Cache-Control: no-cache`.
+
+
+**NOTE**: Since this is a simple demo site, it does not handle multiple chat sessions, so there's no "New Chat" button, please use incognito mode to use a fresh session. 
